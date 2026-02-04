@@ -1,11 +1,13 @@
 # ==============================
-# Birthday Bot (FULL WORKING v20)
+# Birthday Bot (WEBHOOK VERSION)
+# Works on Railway / Render / Cloud
 # ==============================
 
 import os
 import sqlite3
 from datetime import datetime, time
 from dotenv import load_dotenv
+
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
@@ -13,7 +15,11 @@ from telegram.ext import (
 )
 
 load_dotenv()
+
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")   # https://your-app.up.railway.app
+PORT = int(os.environ.get("PORT", 8080))
+
 
 # ================= DATABASE =================
 conn = sqlite3.connect("database.db", check_same_thread=False)
@@ -36,18 +42,22 @@ CREATE TABLE IF NOT EXISTS teachers(
     month INTEGER
 )
 """)
+
 conn.commit()
 
 
 # ================= MENU =================
 def menu():
-    return ReplyKeyboardMarkup([
-        ["➕ Ustoz qo‘shish", "📋 Ustozlar ro‘yxati"],
-        ["⏰ Tabrik vaqtini o‘zgartirish"]
-    ], resize_keyboard=True)
+    return ReplyKeyboardMarkup(
+        [
+            ["➕ Ustoz qo‘shish", "📋 Ustozlar ro‘yxati"],
+            ["⏰ Tabrik vaqtini o‘zgartirish"]
+        ],
+        resize_keyboard=True
+    )
 
 
-# ================== BIRTHDAY JOB ==================
+# ================= BIRTHDAY JOB =================
 async def birthday_job(context: ContextTypes.DEFAULT_TYPE):
     chat_id = context.job.chat_id
     now = datetime.now()
@@ -77,10 +87,12 @@ async def birthday_job(context: ContextTypes.DEFAULT_TYPE):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
 
-    cursor.execute("INSERT OR IGNORE INTO settings(chat_id) VALUES(?)", (chat_id,))
+    cursor.execute(
+        "INSERT OR IGNORE INTO settings(chat_id) VALUES(?)",
+        (chat_id,)
+    )
     conn.commit()
 
-    # 🔥 ENG MUHIM QISM — SCHEDULER
     greet_time = cursor.execute(
         "SELECT greet_time FROM settings WHERE chat_id=?",
         (chat_id,)
@@ -95,7 +107,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         name=str(chat_id)
     )
 
-    await update.message.reply_text("Bot ishga tayyor ✅", reply_markup=menu())
+    await update.message.reply_text(
+        "Bot ishga tayyor ✅",
+        reply_markup=menu()
+    )
 
 
 # ================= ADD TEACHER =================
@@ -174,7 +189,7 @@ conv_add = ConversationHandler(
     states={
         ADD_NAME: [MessageHandler(filters.TEXT, add_name)],
         ADD_DAY: [MessageHandler(filters.TEXT, add_day)],
-        ADD_MONTH: [MessageHandler(filters.TEXT, add_month)]
+        ADD_MONTH: [MessageHandler(filters.TEXT, add_month)],
     },
     fallbacks=[]
 )
@@ -190,5 +205,12 @@ app.add_handler(conv_add)
 app.add_handler(conv_time)
 app.add_handler(MessageHandler(filters.Regex("^📋 Ustozlar ro‘yxati$"), list_teachers))
 
-print("Bot running...")
-app.run_polling()
+
+# ================= RUN WEBHOOK =================
+print("Bot running with WEBHOOK...")
+
+app.run_webhook(
+    listen="0.0.0.0",
+    port=PORT,
+    webhook_url=WEBHOOK_URL
+)
