@@ -212,6 +212,5 @@ print("Bot running with WEBHOOK...")
 app.run_webhook(
     listen="0.0.0.0",
     port=PORT,
-    webhook_url=WEBHOOK_URL,
-    path=BOT_TOKEN
+    webhook_url=f"{WEBHOOK_URL}/{BOT_TOKEN}"
 )
